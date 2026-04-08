@@ -1,12 +1,12 @@
 "use client";
 
-import { MapPin, Phone, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { AnimatePresence, motion, useInView } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CustomCursor } from "./custom-cursor";
 import { SmoothScroll } from "./smooth-scroll";
 
-const navItems = ["HOME", "COMPANY", "MENU", "GALLERY", "CONTACT"];
+const navItems = ["HOME", "ABOUT US", "MENU", "GALLERY", "CONTACT"];
 const navTargets = ["hero", "company", "menu", "gallery", "contact"];
 const menuShowcase = [
   {
@@ -30,7 +30,7 @@ const menuShowcase = [
     description:
       "Crispy, savory, and sweet cafe bites crafted to pair perfectly with your hot beverage rituals.",
     image:
-      "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1200&q=80",
+      "https://rakskitchen.net/wp-content/uploads/2014/01/11992861243_4552794670_z-500x500.jpg",
     icon: "◉",
   },
 ];
@@ -93,41 +93,53 @@ function CoffeeBeanIcon({ className = "h-4 w-4" }: { className?: string }) {
 }
 
 export function RevampedHomePage() {
+  const [isLoading, setIsLoading] = useState(true);
   const [activeSlide, setActiveSlide] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [navMenuOpen, setNavMenuOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const mouseStartX = useRef<number | null>(null);
+  const mouseDragTriggered = useRef(false);
   const collageRef = useRef<HTMLDivElement | null>(null);
   const wheelLastTriggerAt = useRef(0);
   const collageInView = useInView(collageRef, { once: true, margin: "-10%" });
   const [layoutStep, setLayoutStep] = useState(0);
   const [selectedGalleryImage, setSelectedGalleryImage] = useState<string | null>(null);
 
-  const collageLayouts = [
-    [
-      { x: 48, y: 10, width: 320, height: 330, rotate: -2, z: 30 },
-      { x: 0, y: 165, width: 248, height: 228, rotate: 2, z: 20 },
-      { x: 255, y: 125, width: 208, height: 195, rotate: -1, z: 10 },
+  const collageLayouts = useMemo(
+    () => [
+      [
+        { x: 48, y: 10, width: 320, height: 330, rotate: -2, z: 30 },
+        { x: 0, y: 165, width: 248, height: 228, rotate: 2, z: 20 },
+        { x: 255, y: 125, width: 208, height: 195, rotate: -1, z: 10 },
+      ],
+      [
+        { x: 150, y: 8, width: 305, height: 328, rotate: 2, z: 30 },
+        { x: 18, y: 160, width: 245, height: 230, rotate: -2, z: 20 },
+        { x: 0, y: 35, width: 205, height: 190, rotate: 1, z: 10 },
+      ],
+      [
+        { x: 84, y: 6, width: 310, height: 332, rotate: 1, z: 30 },
+        { x: 210, y: 160, width: 250, height: 228, rotate: -2, z: 20 },
+        { x: 0, y: 128, width: 210, height: 192, rotate: 2, z: 10 },
+      ],
     ],
-    [
-      { x: 150, y: 8, width: 305, height: 328, rotate: 2, z: 30 },
-      { x: 18, y: 160, width: 245, height: 230, rotate: -2, z: 20 },
-      { x: 0, y: 35, width: 205, height: 190, rotate: 1, z: 10 },
-    ],
-    [
-      { x: 84, y: 6, width: 310, height: 332, rotate: 1, z: 30 },
-      { x: 210, y: 160, width: 250, height: 228, rotate: -2, z: 20 },
-      { x: 0, y: 128, width: 210, height: 192, rotate: 2, z: 10 },
-    ],
-  ];
+    [],
+  );
+  const collageLayoutCount = collageLayouts.length;
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setIsLoading(false), 2100);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (!collageInView) return;
     const timer = window.setInterval(() => {
-      setLayoutStep((prev) => (prev + 1) % collageLayouts.length);
+      setLayoutStep((prev) => (prev + 1) % collageLayoutCount);
     }, 2400);
     return () => window.clearInterval(timer);
-  }, [collageInView]);
+  }, [collageInView, collageLayoutCount]);
 
   const nextSlide = () =>
     setActiveSlide((prev) => (prev + 1) % heroSlides.length);
@@ -142,21 +154,26 @@ export function RevampedHomePage() {
   }, []);
 
   useEffect(() => {
-    if (!menuOpen) return;
-    const closeOnScroll = () => setMenuOpen(false);
+    if (!menuOpen && !navMenuOpen) return;
+    const closeOnScroll = () => {
+      setMenuOpen(false);
+      setNavMenuOpen(false);
+    };
     window.addEventListener("scroll", closeOnScroll, { passive: true });
     window.addEventListener("wheel", closeOnScroll, { passive: true });
     return () => {
       window.removeEventListener("scroll", closeOnScroll);
       window.removeEventListener("wheel", closeOnScroll);
     };
-  }, [menuOpen]);
+  }, [menuOpen, navMenuOpen]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "ArrowRight") nextSlide();
       if (event.key === "ArrowLeft") prevSlide();
       if (event.key === "Escape") setSelectedGalleryImage(null);
+      if (event.key === "Escape") setMenuOpen(false);
+      if (event.key === "Escape") setNavMenuOpen(false);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -196,28 +213,85 @@ export function RevampedHomePage() {
 
   const onMouseDown = (event: React.MouseEvent<HTMLElement>) => {
     mouseStartX.current = event.clientX;
+    mouseDragTriggered.current = false;
   };
 
   const onMouseMove = (event: React.MouseEvent<HTMLElement>) => {
     if (mouseStartX.current === null || (event.buttons & 1) !== 1) return;
+    if (mouseDragTriggered.current) return;
     const distance = event.clientX - mouseStartX.current;
     if (Math.abs(distance) < 55) return;
     if (distance < 0) nextSlide();
     else prevSlide();
-    mouseStartX.current = event.clientX;
+    mouseDragTriggered.current = true;
   };
 
   const onMouseUpOrLeave = () => {
     mouseStartX.current = null;
+    mouseDragTriggered.current = false;
   };
 
   return (
     <SmoothScroll>
       <CustomCursor />
-      <main className="bg-[radial-gradient(circle_at_top,#fffaf0_0%,#f6f1e7_40%,#ece3d6_100%)] text-[#1d1917]">
+      <main className="relative bg-[radial-gradient(circle_at_top,#fffaf0_0%,#f6f1e7_40%,#ece3d6_100%)] text-[#1d1917]">
+        <AnimatePresence>
+          {isLoading && (
+            <motion.div
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.55, ease: "easeOut" }}
+              className="fixed inset-0 z-[260] flex items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.78)_0%,rgba(245,20,35,0.16)_38%,rgba(21,15,11,0.54)_100%)] backdrop-blur-sm"
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 0.45, ease: "easeOut" }}
+                className="relative flex flex-col items-center"
+              >
+                <motion.div
+                  animate={{ rotate: [0, -1.2, 1.2, -0.8, 0] }}
+                  transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+                  className="grid h-24 w-24 place-items-center overflow-hidden rounded-full border border-white/50 bg-white/70 shadow-[0_18px_45px_rgba(0,0,0,0.22)] sm:h-28 sm:w-28"
+                >
+                  <img
+                    src="/logo.png"
+                    alt="Sivaga Coffee Bar"
+                    className="h-[116%] w-[116%] scale-110 object-cover"
+                  />
+                </motion.div>
+                <motion.p
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.45, delay: 0.15 }}
+                  className="mt-4 text-xs font-black uppercase tracking-[0.22em] text-[#2d251f] sm:text-sm"
+                >
+                  Brewing Since 1999
+                </motion.p>
+                <div className="pointer-events-none absolute -top-6 left-1/2 h-3 w-3 -translate-x-16 rounded-full bg-[#fff7c4]/80" />
+                <motion.div
+                  animate={{ opacity: [0.25, 1, 0.25], scale: [0.8, 1.15, 0.8] }}
+                  transition={{ duration: 1.15, repeat: Infinity, ease: "easeInOut" }}
+                  className="pointer-events-none absolute -top-5 left-1/2 h-2 w-2 -translate-x-8 rounded-full bg-white/95"
+                />
+                <motion.div
+                  animate={{ opacity: [0.2, 0.95, 0.2], scale: [0.75, 1.2, 0.75] }}
+                  transition={{ duration: 1.35, repeat: Infinity, ease: "easeInOut", delay: 0.25 }}
+                  className="pointer-events-none absolute -top-2 left-1/2 h-2.5 w-2.5 translate-x-10 rounded-full bg-[#ffeaa3]/95"
+                />
+                <motion.div
+                  animate={{ opacity: [0.2, 0.95, 0.2], scale: [0.7, 1.1, 0.7] }}
+                  transition={{ duration: 1.25, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
+                  className="pointer-events-none absolute top-6 left-1/2 h-1.5 w-1.5 -translate-x-20 rounded-full bg-white"
+                />
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <section
           id="hero"
-          className="relative min-h-[560px] overflow-hidden bg-[#f51423] px-4 pb-8 pt-4 text-white md:min-h-[620px] md:px-12 lg:min-h-[88vh]"
+          className="relative min-h-[430px] touch-pan-y overflow-hidden bg-[#f51423] px-4 pb-8 pt-4 text-white sm:min-h-[480px] md:min-h-[520px] md:px-12 lg:min-h-[88vh]"
           onWheel={onHeroWheel}
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
@@ -226,36 +300,26 @@ export function RevampedHomePage() {
           onMouseUp={onMouseUpOrLeave}
           onMouseLeave={onMouseUpOrLeave}
         >
-          <AnimatePresence mode="wait">
+          {heroSlides.map((slide, index) => (
             <motion.img
-              key={heroSlides[activeSlide].image}
-              src={heroSlides[activeSlide].image}
+              key={slide.image}
+              src={slide.image}
               alt="Hero slide background"
-              initial={{ opacity: 0, scale: 1.045 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.985 }}
-              transition={{ duration: 0.75, ease: "easeOut" }}
+              initial={false}
+              animate={{
+                opacity: index === activeSlide ? 1 : 0,
+                scale: index === activeSlide ? 1 : 1.015,
+              }}
+              transition={{ duration: 0.65, ease: "easeOut" }}
               className="absolute inset-0 h-full w-full object-cover"
             />
-          </AnimatePresence>
-          <div className="absolute inset-0 bg-gradient-to-b from-[#f51423]/50 via-[#f51423]/20 to-transparent" />
+          ))}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/32 via-black/12 to-transparent" />
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute -left-8 -top-8 h-28 w-28 rounded-full bg-[#ffec99]/45 blur-xl" />
             <div className="absolute -right-10 -top-8 h-28 w-28 rounded-full bg-[#ffec99]/45 blur-xl" />
             <div className="absolute -bottom-8 -left-8 h-28 w-28 rounded-full bg-[#ffec99]/45 blur-xl" />
             <div className="absolute -bottom-8 right-1/3 h-28 w-28 rounded-full bg-[#ffec99]/45 blur-xl" />
-          </div>
-          <div className="relative z-10 mb-3 flex flex-col gap-2 text-[10px] font-semibold uppercase tracking-widest text-white/95 sm:flex-row sm:items-center sm:justify-between sm:text-xs">
-            <p className="flex min-w-0 items-center gap-1.5 sm:gap-2">
-              <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              <span className="truncate">Corporate Office - 17/16B, Chennai</span>
-            </p>
-            <p className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-              <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              <a href="tel:+919090740907" className="whitespace-nowrap underline-offset-2 hover:underline">
-                (+91) 90907 40907
-              </a>
-            </p>
           </div>
           <div className="relative z-10 mb-6 flex w-full max-w-full flex-col rounded-2xl bg-[#ef2332] px-3 py-2.5 sm:mb-8 sm:rounded-[2rem] sm:px-5 sm:py-3.5 md:px-6 md:py-4">
             <div className="grid min-h-[3.25rem] w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 sm:min-h-0 sm:gap-x-3">
@@ -274,32 +338,44 @@ export function RevampedHomePage() {
                 </span>
               </button>
               <div className="flex min-w-0 flex-col items-center justify-center gap-0.5 text-center md:gap-1.5">
-                <p className="w-full max-w-[18rem] truncate px-1 text-[11px] font-black uppercase leading-tight tracking-[0.06em] text-[#fff2b8] sm:max-w-none sm:text-xs sm:tracking-[0.1em] md:text-sm md:tracking-[0.12em]">
-                  Sivaga Coffee Bar
-                </p>
-                <nav
-                  className="hidden flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[10px] font-black uppercase tracking-[0.12em] text-white lg:gap-x-5 lg:text-xs lg:tracking-[0.18em] xl:gap-x-8 md:flex"
-                  aria-label="Primary navigation"
+                <div className="flex flex-wrap items-center justify-center gap-1.5">
+                  <motion.span
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35, delay: 0.08 }}
+                    className="inline-flex rounded-full border border-white/40 bg-white/20 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-[#fff5bf] backdrop-blur-sm sm:text-[10px]"
+                  >
+                    Since 1999
+                  </motion.span>
+                </div>
+                <motion.p
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.12 }}
+                  className="w-full px-1 text-[15px] font-black uppercase leading-tight tracking-[0.06em] text-[#fff2b8] sm:text-xl sm:tracking-[0.08em] md:text-2xl md:tracking-[0.1em] lg:text-4xl lg:tracking-[0.12em]"
                 >
-                  {navItems.map((item, idx) => (
-                    <button
-                      key={item}
-                      type="button"
-                      onClick={() => goToSection(navTargets[idx])}
-                      className="shrink-0 rounded-md px-0.5 py-1 transition hover:text-[#fff2b8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/80"
-                    >
-                      {item}
-                    </button>
-                  ))}
-                </nav>
+                  Sivaga Coffee Bar
+                </motion.p>
+                <motion.p
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, delay: 0.2 }}
+                  className="text-[10px] uppercase tracking-[0.24em] text-white/90 sm:text-xs md:text-sm"
+                >
+                  Brewed With Tradition
+                </motion.p>
               </div>
-              <div
-                className="pointer-events-none h-11 w-11 shrink-0 justify-self-end opacity-0 sm:h-12 sm:w-12 md:h-14 md:w-14"
-                aria-hidden
-              />
+              <button
+                type="button"
+                onClick={() => setNavMenuOpen(true)}
+                aria-label="Open navigation menu"
+                className="grid h-11 w-11 shrink-0 place-items-center justify-self-end rounded-full border border-white/40 bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/80 sm:h-12 sm:w-12 md:h-14 md:w-14"
+              >
+                <Menu className="h-5 w-5 md:h-6 md:w-6" />
+              </button>
             </div>
           </div>
-          <div className="absolute bottom-14 left-0 z-10 flex w-full justify-center gap-3">
+          <div className="absolute bottom-8 left-0 z-10 flex w-full justify-center gap-3 sm:bottom-14">
             {heroSlides.map((_, index) => (
               <button
                 key={`dot-${index}`}
@@ -342,11 +418,19 @@ export function RevampedHomePage() {
           </svg>
         </section>
 
-        <section id="company" className="relative mx-auto grid max-w-7xl gap-6 px-4 py-12 md:grid-cols-[1.2fr_0.7fr_0.9fr] md:px-12">
+        <section id="company" className="relative mx-auto grid max-w-7xl gap-6 px-4 py-12 md:grid-cols-2 md:px-12 lg:grid-cols-[1.2fr_0.7fr_0.9fr]">
           <div className="pointer-events-none absolute inset-0 z-0 rounded-3xl border border-[#ffffffb3] bg-[radial-gradient(circle_at_12%_20%,rgba(195,125,57,0.34),transparent_40%),radial-gradient(circle_at_92%_78%,rgba(245,20,35,0.22),transparent_42%),linear-gradient(135deg,rgba(255,255,255,0.82),rgba(245,236,224,0.82))]" />
           <div className="relative z-10">
-            <p className="mb-3 text-xs uppercase tracking-[0.25em] text-[#9f9185]">Coffee shop since 2000</p>
-            <h2 className="mb-4 text-5xl font-black uppercase leading-[1.05]">
+            <motion.p
+              initial={{ opacity: 0, y: 8 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.7 }}
+              transition={{ duration: 0.4 }}
+              className="mb-3 text-xs uppercase tracking-[0.25em] text-[#9f9185]"
+            >
+              Coffee shop since 1999
+            </motion.p>
+            <h2 className="mb-4 text-3xl font-black uppercase leading-[1.05] sm:text-4xl lg:text-5xl">
               We Are Not Just
               <br />
               Regular Coffee Shop
@@ -360,14 +444,66 @@ export function RevampedHomePage() {
               <li>Affordable and luxurious</li>
             </ul>
           </div>
-          <div className="relative z-10 rounded-[2rem] bg-[#f51423] p-8 text-center text-white">
-            <p className="text-5xl font-black">150000+</p>
-            <p className="mb-7 mt-2 text-xs font-black uppercase tracking-[0.2em]">Happy customers every day</p>
-            <div className="mb-7 h-px w-full bg-white/30" />
-            <p className="text-5xl font-black">99%</p>
-            <p className="mt-2 text-xs font-black uppercase tracking-[0.2em]">Customer satisfaction</p>
+          <div className="relative z-10 flex min-h-[337px] flex-col justify-center rounded-[2rem] bg-[#f51423] p-6 text-center text-white sm:p-8">
+            <motion.p
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.6 }}
+              transition={{ duration: 0.35 }}
+              className="text-5xl font-black"
+            >
+              10K
+            </motion.p>
+            <motion.p
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.6 }}
+              transition={{ duration: 0.35, delay: 0.08 }}
+              className="mt-2 text-xs font-black uppercase tracking-[0.2em]"
+            >
+              Happy customers every day
+            </motion.p>
+            <motion.p
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.6 }}
+              transition={{ duration: 0.35, delay: 0.14 }}
+              className="mx-auto mt-2 max-w-[20rem] text-xs leading-5 text-white/90"
+            >
+              Serving freshly brewed taste and warm hospitality from morning till
+              closing time.
+            </motion.p>
+            <div className="mb-6 mt-6 h-px w-full bg-white/30" />
+            <motion.p
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.6 }}
+              transition={{ duration: 0.35, delay: 0.2 }}
+              className="text-5xl font-black"
+            >
+              99%
+            </motion.p>
+            <motion.p
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.6 }}
+              transition={{ duration: 0.35, delay: 0.26 }}
+              className="mt-2 text-xs font-black uppercase tracking-[0.2em]"
+            >
+              Customer satisfaction
+            </motion.p>
+            <motion.p
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.6 }}
+              transition={{ duration: 0.35, delay: 0.32 }}
+              className="mx-auto mt-2 max-w-[20rem] text-xs leading-5 text-white/90"
+            >
+              Built on consistent quality, quick service, and memorable coffee
+              moments.
+            </motion.p>
           </div>
-          <div className="relative z-10 rounded-xl bg-[linear-gradient(145deg,#2a1f18,#4a3428)] p-6 text-white">
+          <div className="relative z-10 rounded-xl bg-[linear-gradient(145deg,#2a1f18,#4a3428)] p-6 text-white md:col-span-2 lg:col-span-1">
             <p className="mb-2 text-xs uppercase tracking-[0.25em] text-[#f5c083]">Today&apos;s special</p>
             <h3 className="mb-3 text-3xl font-black uppercase leading-tight">
               Signature
@@ -405,7 +541,7 @@ export function RevampedHomePage() {
               viewport={{ once: true, amount: 0.25 }}
               transition={{ duration: 0.45, delay: index * 0.08 }}
               whileHover={{ y: -12, scale: 1.01 }}
-              className="group relative z-10 min-h-[420px] overflow-hidden rounded-2xl border border-white/30 shadow-[0_10px_30px_rgba(0,0,0,0.2)]"
+              className="group relative z-10 min-h-[340px] overflow-hidden rounded-2xl border border-white/30 shadow-[0_10px_30px_rgba(0,0,0,0.2)] sm:min-h-[380px] lg:min-h-[420px]"
             >
               <img
                 src={item.image}
@@ -426,7 +562,7 @@ export function RevampedHomePage() {
                 </motion.p>
                 <h3 className="text-4xl font-black uppercase tracking-wide">{item.title}</h3>
                 <div className="my-2 h-1 w-16 rounded-full bg-white/70" />
-                <p className="max-h-0 overflow-hidden text-sm leading-7 text-white/95 opacity-0 transition-all duration-500 group-hover:mt-2 group-hover:max-h-36 group-hover:opacity-100">
+                <p className="mt-2 max-h-36 overflow-hidden text-sm leading-7 text-white/95 opacity-100 transition-all duration-500 lg:mt-0 lg:max-h-0 lg:opacity-0 lg:group-hover:mt-2 lg:group-hover:max-h-36 lg:group-hover:opacity-100">
                   {item.description}
                 </p>
               </div>
@@ -434,12 +570,50 @@ export function RevampedHomePage() {
           ))}
         </section>
 
-        <section className="relative mx-auto grid max-w-7xl items-center gap-8 px-4 py-12 md:grid-cols-2 md:px-12">
+        <section className="relative mx-auto grid max-w-7xl items-center gap-8 px-4 pb-12 pt-5 md:grid-cols-2 md:px-12 md:py-12">
           <div className="pointer-events-none absolute inset-0 z-0 rounded-3xl border border-[#ffffffb3] bg-[radial-gradient(circle_at_80%_30%,rgba(245,20,35,0.2),transparent_35%),radial-gradient(circle_at_10%_80%,rgba(194,128,61,0.28),transparent_38%),linear-gradient(120deg,rgba(255,255,255,0.72),rgba(235,228,218,0.9))]" />
-          <div className="relative z-10 flex min-h-[520px] items-center justify-center">
+          <div className="relative z-10 flex min-h-[360px] items-start justify-center sm:min-h-[420px] md:min-h-[520px] md:items-center">
+            <div className="w-full max-w-[620px] lg:hidden">
+              <div className="mb-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8f7a67]">
+                  Gallery Highlights
+                </p>
+                <h4 className="mt-0 text-2xl font-black uppercase leading-tight text-[#2b221c] md:hidden">
+                  Signature Sip Frames
+                </h4>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+              {[
+                {
+                  src: "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=1100&q=80",
+                  title: "Velvet Roast Stories",
+                },
+                {
+                  src: "https://images.unsplash.com/photo-1453614512568-c4024d13c247?auto=format&fit=crop&w=1100&q=80",
+                  title: "Midnight Mocha Mood",
+                },
+                {
+                  src: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=1100&q=80",
+                  title: "Sunrise Sip Sessions",
+                },
+              ].map((item, idx) => (
+                <div
+                  key={`mobile-collage-${idx}`}
+                  className={`${idx === 0 ? "col-span-2 h-56 sm:h-64 md:h-72" : "h-40 sm:h-48 md:h-56"} relative overflow-hidden rounded-2xl border-2 border-white/60 shadow-[0_12px_30px_rgba(0,0,0,0.18)]`}
+                >
+                  <img src={item.src} alt="Sivaga ambience" className="h-full w-full object-cover" />
+                  <div className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/80 via-black/35 to-transparent px-3 pb-3 pt-8">
+                    <p className="inline-flex rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-[#2b221c] sm:text-xs md:hidden">
+                      {item.title}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              </div>
+            </div>
             <div
               ref={collageRef}
-              className="relative flex h-[460px] w-full max-w-[560px] items-center justify-center overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(255,255,255,0)_0%,rgba(60,42,31,0.08)_64%,rgba(60,42,31,0.16)_100%)] md:h-[500px] lg:h-[540px]"
+              className="relative hidden h-[540px] w-full max-w-[560px] items-center justify-center overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(255,255,255,0)_0%,rgba(60,42,31,0.08)_64%,rgba(60,42,31,0.16)_100%)] lg:flex"
             >
               <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-[radial-gradient(circle_at_12%_120%,rgba(255,255,255,0.3),transparent_45%),radial-gradient(circle_at_88%_120%,rgba(255,255,255,0.26),transparent_45%)]" />
               <div className="pointer-events-none absolute bottom-0 left-0 h-12 w-full bg-[linear-gradient(to_top,rgba(34,24,18,0.22),rgba(34,24,18,0))]" />
@@ -458,7 +632,7 @@ export function RevampedHomePage() {
                 <span className="h-3 w-2 -rotate-6 rounded-full border border-white/70" />
                 <span className="h-3 w-2 rotate-6 rounded-full border border-white/70" />
               </div>
-              <div className="relative h-[330px] w-[320px] sm:h-[380px] sm:w-[400px] md:h-[420px] md:w-[470px] lg:h-[450px] lg:w-[510px]">
+              <div className="relative h-[450px] w-[510px]">
                 {[
                   {
                     src: "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=1100&q=80",
@@ -506,7 +680,7 @@ export function RevampedHomePage() {
           </div>
           <div className="relative z-10">
             <p className="mb-3 text-xs uppercase tracking-[0.25em] text-[#9f9185]">Coffeehouse vibes</p>
-            <h3 className="mb-4 text-5xl font-black uppercase leading-tight">
+            <h3 className="mb-4 text-3xl font-black uppercase leading-tight sm:text-4xl lg:text-5xl">
               A Place You
               <br />
               Love To Return
@@ -539,14 +713,14 @@ export function RevampedHomePage() {
           <div className="mb-5 flex items-end justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.25em] text-[#9f9185]">Gallery</p>
-              <h3 className="text-4xl font-black uppercase text-[#2b221c] md:text-5xl">Happy Day Moments</h3>
+              <h3 className="text-3xl font-black uppercase text-[#2b221c] sm:text-4xl lg:text-5xl">Happy Day Moments</h3>
             </div>
             <p className="hidden max-w-sm text-sm text-[#6f6258] md:block">
               A lively glimpse of our coffee stories, warm ambience, and snacks
               that keep customers coming back.
             </p>
           </div>
-          <div className="grid min-h-[400px] gap-4 md:grid-cols-[1.2fr_1fr_1fr]">
+          <div className="grid min-h-[400px] gap-4 md:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr]">
             {[
               "https://images.unsplash.com/photo-1559925393-8be0ec4767c8?auto=format&fit=crop&w=1400&q=80",
               "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1100&q=80",
@@ -556,7 +730,7 @@ export function RevampedHomePage() {
                 key={img}
                 whileHover={{ y: -8, scale: 1.01 }}
                 onClick={() => setSelectedGalleryImage(img)}
-                className="group relative overflow-hidden rounded-2xl border border-white/40 shadow-[0_12px_32px_rgba(0,0,0,0.18)]"
+                className={`group relative overflow-hidden rounded-2xl border border-white/40 shadow-[0_12px_32px_rgba(0,0,0,0.18)] ${idx === 0 ? "md:col-span-2 lg:col-span-1" : ""}`}
               >
                 <img
                   src={img}
@@ -589,7 +763,10 @@ export function RevampedHomePage() {
                 <div className="space-y-4 text-sm">
                   <div>
                     <p className="text-white/70">Address</p>
-                    <p className="font-medium">Sivaga Coffee Bar, Tiruvannamalai, Tamil Nadu</p>
+                    <p className="font-medium">
+                      No 10, Santhosh Garden 2, Parvathi Nagar, Tiruvannamalai,
+                      Tamil Nadu, India - 606601
+                    </p>
                   </div>
                   <div>
                     <p className="text-white/70">Phone</p>
@@ -601,7 +778,7 @@ export function RevampedHomePage() {
                   </div>
                 </div>
                 <a
-                  href="https://www.google.com/maps?q=Tiruvannamalai,+Tamil+Nadu"
+                  href="https://www.google.com/maps?q=No+10+Santhosh+Garden+2+Parvathi+Nagar+Tiruvannamalai+Tamil+Nadu+India+606601"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-6 inline-block rounded bg-[#f51423] px-5 py-3 text-xs font-black uppercase tracking-[0.18em] text-white"
@@ -626,6 +803,63 @@ export function RevampedHomePage() {
         </section>
 
         <AnimatePresence>
+          {navMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[96] bg-black/30 p-4 md:p-8"
+              onClick={() => setNavMenuOpen(false)}
+            >
+              <motion.div
+                initial={{ x: 28, opacity: 0, scale: 0.98 }}
+                animate={{ x: 0, opacity: 1, scale: 1 }}
+                exit={{ x: 20, opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.24, ease: "easeOut" }}
+                onClick={(e) => e.stopPropagation()}
+                className="ml-auto mr-2 mt-20 w-[min(90vw,360px)] overflow-hidden rounded-[1.6rem] border border-white/40 bg-[#faf8f4] text-left shadow-[0_18px_44px_rgba(0,0,0,0.28)] md:mr-10 md:mt-24"
+              >
+                <div className="bg-[radial-gradient(circle_at_top_right,rgba(245,20,35,0.12),transparent_44%),linear-gradient(180deg,#fffdf9,#f3efe8)] px-5 pb-5 pt-4">
+                  <div className="mb-4 flex items-center justify-between">
+                    <p className="text-xs font-black uppercase tracking-[0.22em] text-[#8c7e72]">
+                      Navigation
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setNavMenuOpen(false)}
+                      className="grid h-8 w-8 place-items-center rounded-full bg-[#f51423] text-white"
+                      aria-label="Close navigation menu"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <nav aria-label="Section navigation" className="space-y-1.5">
+                    {navItems.map((item, idx) => (
+                      <motion.button
+                        key={`nav-popup-${item}`}
+                        initial={{ opacity: 0, x: 14 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.28, delay: 0.05 + idx * 0.06 }}
+                        whileHover={{ x: 4 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          goToSection(navTargets[idx]);
+                          setNavMenuOpen(false);
+                        }}
+                        className="group flex w-full items-center justify-between rounded-xl border border-[#e2d9cf] bg-white/70 px-4 py-3 text-sm font-black uppercase tracking-[0.14em] text-[#2b221c] transition hover:border-[#f51423]/40 hover:bg-[#fff5f1]"
+                      >
+                        <span>{item}</span>
+                        <span className="text-[#f51423] transition group-hover:translate-x-1">
+                          →
+                        </span>
+                      </motion.button>
+                    ))}
+                  </nav>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+
           {menuOpen && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -640,53 +874,32 @@ export function RevampedHomePage() {
                 exit={{ y: -14, opacity: 0, scale: 0.98 }}
                 transition={{ duration: 0.25 }}
                 onClick={(e) => e.stopPropagation()}
-                className="mr-auto ml-2 mt-24 w-full max-w-md overflow-hidden rounded-[2rem] border border-white/40 bg-[#f7f6f3] text-center shadow-[0_22px_60px_rgba(0,0,0,0.28)] md:ml-14 md:mt-28"
+                className="mr-auto ml-2 mt-20 w-[min(90vw,350px)] overflow-hidden rounded-[1.6rem] border border-white/40 bg-[#f7f6f3] text-center shadow-[0_18px_44px_rgba(0,0,0,0.26)] md:ml-10 md:mt-24"
               >
-                <div className="relative bg-[radial-gradient(circle_at_top_right,rgba(245,20,35,0.12),transparent_42%),linear-gradient(180deg,#fbfaf8,#f1efea)] px-7 pb-7 pt-6">
-                <div className="mb-5 flex items-start justify-start">
+                <div className="relative bg-[radial-gradient(circle_at_top_right,rgba(245,20,35,0.12),transparent_42%),linear-gradient(180deg,#fbfaf8,#f1efea)] px-5 pb-5 pt-4">
+                <div className="mb-4 flex items-start justify-start">
                   <button
                     type="button"
                     onClick={() => setMenuOpen(false)}
-                    className="grid h-9 w-9 place-items-center rounded-full bg-[#f51423] text-white"
+                    className="grid h-8 w-8 place-items-center rounded-full bg-[#f51423] text-white"
                     aria-label="Close menu"
                   >
-                    <X className="h-4 w-4" aria-hidden />
+                    <X className="h-3.5 w-3.5" aria-hidden />
                   </button>
                 </div>
-                <nav
-                  className="mb-5 border-b border-[#231c16]/10 pb-4 text-left md:hidden"
-                  aria-label="Primary navigation"
-                >
-                  <ul className="space-y-0.5">
-                    {navItems.map((item, idx) => (
-                      <li key={item}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            goToSection(navTargets[idx]);
-                            setMenuOpen(false);
-                          }}
-                          className="w-full rounded-xl px-3 py-3 text-left text-sm font-black uppercase tracking-[0.12em] text-[#231c16] transition hover:bg-[#f51423]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f51423]/40"
-                        >
-                          {item}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </nav>
-                <h4 className="mb-2 text-4xl font-black uppercase leading-tight text-[#231c16]">
+                <h4 className="mb-1 text-3xl font-black uppercase leading-tight text-[#231c16]">
                   Welcome To
                   <br />
                   Sivaga Coffee
                 </h4>
-                <p className="mb-5 text-[#5f554c]">Fuel your dreams with Sivaga Coffee</p>
+                <p className="mb-4 text-sm text-[#5f554c]">Fuel your dreams with Sivaga Coffee</p>
                 <div className="mb-4 flex justify-center">
                   <CoffeeBeanIcon className="h-4 w-4 text-[#4e4238]" />
                 </div>
                 <div className="mb-5 space-y-3">
-                  <p className="text-4xl font-black text-[#e2292f]">(+91) 90922 99797</p>
-                  <p className="text-lg text-[#312923]">Tiruvannamalai, Tamil Nadu</p>
-                  <p className="text-base text-[#312923]">sivagacoffeebar@gmail.com</p>
+                  <p className="text-3xl font-black text-[#e2292f]">(+91) 90922 99797</p>
+                  <p className="text-base text-[#312923]">No 10, Santhosh Garden 2, Parvathi Nagar, Tiruvannamalai</p>
+                  <p className="text-sm text-[#312923]">sivagacoffeebar@gmail.com</p>
                 </div>
                 <div className="mb-4 flex justify-center">
                   <CoffeeBeanIcon className="h-4 w-4 text-[#4e4238]" />
@@ -715,6 +928,14 @@ export function RevampedHomePage() {
               onClick={() => setSelectedGalleryImage(null)}
               className="fixed inset-0 z-[90] grid place-items-center bg-black/80 p-6"
             >
+              <button
+                type="button"
+                onClick={() => setSelectedGalleryImage(null)}
+                aria-label="Close image preview"
+                className="absolute right-4 top-4 grid h-11 w-11 place-items-center rounded-full border border-white/40 bg-black/40 text-xl text-white backdrop-blur-sm"
+              >
+                ×
+              </button>
               <motion.img
                 initial={{ scale: 0.92, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
@@ -729,7 +950,7 @@ export function RevampedHomePage() {
         </AnimatePresence>
 
         <footer className="bg-[#22201f] px-4 py-14 text-white md:px-12">
-          <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-4">
+          <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-2 lg:grid-cols-4">
             <div>
               <div className="mb-3 grid h-16 w-16 place-items-center overflow-hidden rounded-full border border-white/20 bg-white/5">
                 <img src="/logo.png" alt="Sivaga Coffee Bar" className="h-full w-full object-contain" />
@@ -738,14 +959,27 @@ export function RevampedHomePage() {
             </div>
             <div>
               <h4 className="mb-3 text-xl font-black uppercase">Contact Us</h4>
-              <p className="text-sm text-white/75">Chennai, Tamil Nadu</p>
-              <p className="mt-4 text-sm text-white/75">(+91) 90907 40907</p>
+              <p className="text-sm text-white/75">Parvathi Nagar, Tiruvannamalai, Tamil Nadu - 606601</p>
+              <p className="mt-4 text-sm text-white/75">(+91) 90922 99797</p>
             </div>
             <div>
               <h4 className="mb-3 text-xl font-black uppercase">Our Links</h4>
               <ul className="space-y-2 text-sm text-white/75">
-                {["Company", "Menu", "Gallery", "Contact"].map((item) => (
-                  <li key={item}>{item}</li>
+                {[
+                  { label: "About Us", target: "company" },
+                  { label: "Menu", target: "menu" },
+                  { label: "Gallery", target: "gallery" },
+                  { label: "Contact", target: "contact" },
+                ].map((item) => (
+                  <li key={item.label}>
+                    <button
+                      type="button"
+                      onClick={() => goToSection(item.target)}
+                      className="transition hover:text-white"
+                    >
+                      {item.label}
+                    </button>
+                  </li>
                 ))}
               </ul>
             </div>
@@ -757,11 +991,8 @@ export function RevampedHomePage() {
               </div>
             </div>
           </div>
-          <div className="mx-auto mt-8 flex max-w-7xl items-center justify-between border-t border-white/10 pt-6 text-sm text-white/70">
+          <div className="mx-auto mt-8 flex max-w-7xl flex-col gap-3 border-t border-white/10 pt-6 text-sm text-white/70 sm:flex-row sm:items-center sm:justify-between">
             <p>© 2026 Sivaga Coffee. All Rights Reserved.</p>
-            <a href="tel:+919090740907" className="flex items-center gap-2">
-              <Phone className="h-4 w-4" /> (+91) 90907 40907
-            </a>
           </div>
         </footer>
       </main>

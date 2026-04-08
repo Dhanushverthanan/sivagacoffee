@@ -48,7 +48,7 @@ export function CustomCursor() {
   }, []);
 
   return (
-    <div aria-hidden className="pointer-events-none fixed left-0 top-0 z-[120] hidden md:block">
+    <div aria-hidden className="pointer-events-none fixed left-0 top-0 z-[220] hidden md:block">
       <div
         ref={dotRef}
         className="absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#ff1a2c]"
